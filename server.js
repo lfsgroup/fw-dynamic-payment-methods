@@ -16,20 +16,19 @@ app.get('/config', (req, res) => {
 // Create Payment Intent endpoint
 app.post('/create-payment-intent', async (req, res) => {
   try {
-    const { amount, currency = 'aud', paymentMethods} = req.body;
+    const { amount, currency = 'usd' } = req.body;
     
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount,
       currency: currency,
-      automatic_payment_methods: {
-        enabled: true,
-        allow_redirects: 'always'
-      },
-      //payment_method_types: ['card', 'klarna'],
-      payment_method_configuration: paymentMethods,
-      metadata: {
-        order_id: 'order_123',
-        payment_config: paymentMethods
+      payment_method_types: ['card', 'us_bank_account', 'affirm'],
+      // automatic_payment_methods: {
+      //   enabled: true,
+      //   allow_redirects: 'always'
+      // },
+      // payment_method_configuration: process.env.STRIPE_BNPL_CONFIG,
+      metadata: {        
+        order_id: 'order_123'
       }
     });
 
