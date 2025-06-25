@@ -26,6 +26,43 @@ app.post("/create-payment-intent", async (req, res) => {
         allow_redirects: "always",
       },
       metadata: {
+        order_id: `order_${Date.now()}`,
+        created_at: new Date().toISOString(),
+      },
+    });
+    console.log(paymentIntent);
+    res.send({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      status: paymentIntent.status,
+    });
+    // res.send({
+    //
+    //   clientSecret: paymentIntent.client_secret,
+    // });
+  } catch (error) {
+    res.status(400).send({
+      error: {
+        message: error.message,
+      },
+    });
+  }
+});
+
+app.post("/create-static-payment-intent", async (req, res) => {
+  try {
+    const { amount, currency = "usd" } = req.body;
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amount,
+      currency: currency,
+      payment_method_types: ["card", "us_bank_account", "affirm", "klarna"],
+      // automatic_payment_methods: {
+      //   enabled: true,
+      //   allow_redirects: 'always'
+      // },
+      // payment_method_configuration: process.env.STRIPE_BNPL_CONFIG,
+      metadata: {
         order_id: "order_123",
       },
     });

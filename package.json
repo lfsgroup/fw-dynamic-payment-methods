@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
-    "dynamic-pm": "node server-dynamic.js"
+    "dynamic-pm": "npx nodemon node server-dynamic.js"
   },
   "keywords": [],
   "author": "",

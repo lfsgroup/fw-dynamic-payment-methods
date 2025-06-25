@@ -1,0 +1,57 @@
+body {
+  font-family: Arial, sans-serif;
+  max-width: 600px;
+  margin: 50px auto;
+}
+#payment-form {
+  margin-top: 20px;
+}
+#amount {
+  font-size: 16px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid #999;
+  color: #433;
+  height: 36px;
+}
+#payment-element {
+  margin: 20px 0;
+}
+#submit-button {
+  background: #5469d4;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+}
+#submit-button:disabled {
+  background: #ccc;
+}
+#loading {
+  text-align: center;
+  margin: 20px 0;
+}
+.menu {
+  border-bottom: 1px solid #efefef;
+  padding-bottom: 10px;
+  display: block;
+}
+.menu a {
+  color: #444;
+  text-decoration: none;
+  margin-right: 20px;
+}
+.menu a:hover {
+  color: purple;
+}
+.menu a.selected,
+.menu.a.selected:hover {
+  font-weight: bold;
+  background: #efefef;
+  border-radius: 20px;
+  padding: 10px 20px;
+  display: inline-block;
+  cursor: default;
+  color: purple;
+}

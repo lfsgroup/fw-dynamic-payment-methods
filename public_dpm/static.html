@@ -1,26 +1,28 @@
 <!doctype html>
 <html lang="en-us">
   <head>
-    <title>Dynamic Stripe Payment</title>
+    <title>Custom Payment method</title>
     <script src="https://js.stripe.com/v3/"></script>
     <link  rel="stylesheet" href="./style.css"></link>
   </head>
   <body>
     <nav class="menu">
-      <a href="/" class="selected"> Dynamic payment methods </a>
-      <a href="/static.html"> Static payment methods </a>
+      <a href="/"> Dynamic payment methods </a>
+      <a href="/static.html" class="selected"> Static payment methods </a>
     </nav>
 
-    <h2>Dynamic Payment Methods</h2>
+    <h2>Custom Payment Configuration</h2>
 
-    <form id="payment-form">
+    <div id="loading">Loading payment form...</div>
+
+    <form id="payment-form" style="display: none">
       <div>
         <label>Amount: $</label>
-        <input type="number" id="amount" value="50.00" step="0.01" min="0.50" />
+        <input type="number" id="amount" value="50.00" step="0.01" min="1.00" />
       </div>
 
       <div id="payment-element">
-        <!-- Stripe Elements will automatically show relevant payment methods -->
+        <!-- Stripe Elements will create form elements here -->
       </div>
 
       <button id="submit-button" type="submit">Pay Now</button>
@@ -29,17 +31,9 @@
     </form>
 
     <script>
-      // Initialize Stripe
       let stripe;
       let elements;
       let paymentElement;
-
-      document
-        .getElementById("amount")
-        .addEventListener("change", initializePayment);
-      document
-        .getElementById("payment-form")
-        .addEventListener("submit", handleSubmit);
 
       // Initialize everything when page loads
       initApp();
@@ -73,44 +67,57 @@
         }
       }
 
-      // Initialize payment when page loads
-      initializePayment();
-
       async function initializePayment() {
         const amount = Math.round(
           parseFloat(document.getElementById("amount").value) * 100,
         );
 
-        // Create Payment Intent on server
-        const response = await fetch("/create-payment-intent", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ amount }),
-        });
-
-        const { clientSecret } = await response.json();
-
-        // Create Elements instance - simpler configuration for dynamic methods
-        elements = stripe.elements({
-          clientSecret,
-          appearance: {
-            theme: "stripe",
-            variables: {
-              colorPrimary: "#0570de",
+        try {
+          // Create Payment Intent on server
+          const response = await fetch("/create-payment-intent", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
             },
-          },
-        });
+            body: JSON.stringify({ amount }),
+          });
 
-        // Create and mount Payment Element
-        if (paymentElement) {
-          paymentElement.unmount();
+          const { clientSecret } = await response.json();
+
+          // Create Elements instance
+          elements = stripe.elements({
+            clientSecret,
+            appearance: {
+              theme: "stripe",
+              variables: {
+                colorPrimary: "#0570de",
+                colorBackground: "#ffffff",
+                colorText: "#30313d",
+                colorDanger: "#df1b41",
+                fontFamily: "Ideal Sans, system-ui, sans-serif",
+                spacingUnit: "2px",
+                borderRadius: "4px",
+              },
+            },
+          });
+
+          // Create and mount Payment Element
+          if (paymentElement) {
+            paymentElement.unmount();
+          }
+
+          paymentElement = elements.create("payment", {
+            layout: {
+              type: "tabs",
+              defaultCollapsed: false,
+            },
+          });
+
+          paymentElement.mount("#payment-element");
+        } catch (error) {
+          document.getElementById("error-message").textContent =
+            "Error: " + error.message;
         }
-
-        // Dynamic payment element - Stripe automatically shows relevant methods
-        paymentElement = elements.create("payment");
-        paymentElement.mount("#payment-element");
       }
 
       async function handleSubmit(event) {

@@ -3,36 +3,14 @@
   <head>
     <title>Custom Stripe Payment</title>
     <script src="https://js.stripe.com/v3/"></script>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        max-width: 600px;
-        margin: 50px auto;
-      }
-      #payment-form {
-        margin-top: 20px;
-      }
-      #payment-element {
-        margin: 20px 0;
-      }
-      #submit-button {
-        background: #5469d4;
-        color: white;
-        border: none;
-        padding: 12px 20px;
-        border-radius: 4px;
-        cursor: pointer;
-      }
-      #submit-button:disabled {
-        background: #ccc;
-      }
-      #loading {
-        text-align: center;
-        margin: 20px 0;
-      }
-    </style>
+    <style></style>
   </head>
   <body>
+    <nav>
+      <a href="/"> Dynamic payment methods </a>
+
+      <a href="/static.html"> Static payment methods </a>
+    </nav>
     <h1>Custom Payment Configuration</h1>
 
     <div id="loading">Loading payment form...</div>
