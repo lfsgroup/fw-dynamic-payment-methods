@@ -10,6 +10,7 @@ app.use(express.json());
 app.get("/config", (req, res) => {
   res.json({
     publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+    pmc: process.env.PAYMENT_METHOD_CONFIGURATION_ID,
   });
 });
 // Create Payment Intent with automatic payment methods
