@@ -50,7 +50,7 @@
         try {
           // Get publishable key from server
           const configResponse = await fetch("/config");
-          const { publishableKey } = await configResponse.json();
+          const { publishableKey, pmc} = await configResponse.json();
 
           // Initialize Stripe with the key
           stripe = Stripe(publishableKey);
@@ -68,7 +68,7 @@
             .addEventListener("submit", handleSubmit);
 
           // Initialize payment
-          await initializePayment();
+          await initializePayment(pmc);
         } catch (error) {
           document.getElementById("loading").textContent =
             "Error loading payment form: " + error.message;
@@ -76,9 +76,9 @@
       }
 
       // Initialize payment when page loads
-      initializePayment();
+      // initializePayment();
 
-      async function initializePayment() {
+      async function initializePayment(pmc) {
         const amount = Math.round(
           parseFloat(document.getElementById("amount").value) * 100,
         );
@@ -97,6 +97,9 @@
         // Create Elements instance - simpler configuration for dynamic methods
         elements = stripe.elements({
           clientSecret,
+          // mode:"payment",
+          // currency: 'usd',
+          payment_method_configuration: pmc,
           appearance: {
             theme: "stripe",
             variables: {
@@ -121,7 +124,7 @@
         const submitButton = document.getElementById("submit-button");
         submitButton.disabled = true;
         submitButton.textContent = "Processing...";
-       
+
         const { error } = await stripe.confirmPayment({
           elements,
           confirmParams: {

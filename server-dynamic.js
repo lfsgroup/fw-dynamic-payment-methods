@@ -22,6 +22,8 @@ app.post("/create-payment-intent", async (req, res) => {
       amount: amount, // Amount in cents
       currency: currency,
       // Let Stripe automatically determine available payment methods
+
+      payment_method_configuration: process.env.PAYMENT_METHOD_CONFIGURATION_ID,
       automatic_payment_methods: {
         enabled: true,
         allow_redirects: "always",
