@@ -76,7 +76,7 @@
       }
 
       // Initialize payment when page loads
-      initializePayment();
+      // initializePayment();
 
       async function initializePayment() {
         const amount = Math.round(
@@ -97,6 +97,10 @@
         // Create Elements instance - simpler configuration for dynamic methods
         elements = stripe.elements({
           clientSecret,
+          // mode: 'payment',
+          // amount,
+          // currency: 'usd',
+          // payment_method_configuration: 'pmc_1Re81oCyF4JkPXbX8hSrtkII',
           appearance: {
             theme: "stripe",
             variables: {

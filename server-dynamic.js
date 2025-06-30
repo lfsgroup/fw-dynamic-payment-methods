@@ -1,6 +1,9 @@
-require("dotenv").config();
-const express = require("express");
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+import { config } from "dotenv";
+import express from "express";
+import stripeApi from "stripe";
+import PaymentMethodController from "./pm-controller.js";
+config();
+const stripe = stripeApi(process.env.STRIPE_SECRET_KEY);
 const app = express();
 
 app.use(express.static("public_dpm"));
@@ -16,18 +19,51 @@ app.get("/config", (req, res) => {
 // Create Payment Intent with automatic payment methods
 app.post("/create-payment-intent", async (req, res) => {
   try {
-    const { amount, currency = "usd" } = req.body;
+    const {
+      amount,
+      currency = "usd",
+      country = "US",
+      customer_segment = "default",
+    } = req.body;
 
+    const pmConfiguration = await stripe.paymentMethodConfigurations.retrieve(
+      process.env.PAYMENT_METHOD_CONFIGURATION_ID,
+    );
+
+    console.log(pmConfiguration);
+
+    // Extract payment method names
+    const paymentMethods = Object.keys(pmConfiguration).filter(
+      (key) =>
+        pmConfiguration[key] &&
+        pmConfiguration[key].display_preference &&
+        pmConfiguration[key].display_preference.preference === "on",
+    );
+    const paymentController = new PaymentMethodController(paymentMethods);
+
+    // Get filtered payment methods
+    const allowedMethods = paymentController.filterPaymentMethods(
+      amount,
+      currency,
+      country,
+      customer_segment,
+    );
+    console.log(
+      "ALLOWED PAYMENT METHOD ..........................................",
+    );
+    console.log(allowedMethods);
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount, // Amount in cents
       currency: currency,
-      // Let Stripe automatically determine available payment methods
+      // provide filtered payment method with amount limit filter applied
+      payment_method_types: allowedMethods,
 
-      payment_method_configuration: process.env.PAYMENT_METHOD_CONFIGURATION_ID,
-      automatic_payment_methods: {
-        enabled: true,
-        allow_redirects: "always",
-      },
+      // Let Stripe automatically determine available payment methods
+      // payment_method_configuration: process.env.PAYMENT_METHOD_CONFIGURATION_ID,
+      // automatic_payment_methods: {
+      //   enabled: true,
+      //   allow_redirects: "always",
+      // },
       metadata: {
         order_id: `order_${Date.now()}`,
         created_at: new Date().toISOString(),
@@ -72,6 +108,34 @@ app.post("/create-static-payment-intent", async (req, res) => {
 
     res.send({
       clientSecret: paymentIntent.client_secret,
+    });
+  } catch (error) {
+    res.status(400).send({
+      error: {
+        message: error.message,
+      },
+    });
+  }
+});
+
+app.post("/create-setup-intent", async (req, res) => {
+  try {
+    const setupIntent = await stripe.setupIntents.create({
+      // customer: "cus_customer_id" + Date.now(), // Optional: attach to existing customer
+      automatic_payment_methods: {
+        enabled: true,
+        allow_redirects: "always",
+      },
+      usage: "off_session", // or 'on_session'
+      // Optional: metadata for your reference
+      metadata: {
+        user_id: "user_123",
+      },
+    });
+    console.log("SETUPINTENT--------------------------------------------");
+    console.log({ setupIntent });
+    res.send({
+      client_secret: setupIntent.client_secret,
     });
   } catch (error) {
     res.status(400).send({
