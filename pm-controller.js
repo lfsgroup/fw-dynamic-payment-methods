@@ -4,9 +4,9 @@ class PaymentMethodController {
     this.paymentMethodRules = {
       // Amount-based rules (in cents)
       amountRules: {
-        klarna: { min: 10000, max: 1000000 }, // $35 - $10,000
+        klarna: { min: 10000, max: 1000000 }, // $105 - $10,000
         afterpay_clearpay: { min: 100, max: 200000 }, // $1 - $2,000
-        affirm: { min: 15000, max: 3000000 }, // $50 - $30,000
+        affirm: { min: 15000, max: 3000000 }, // $150 - $30,000
         zip: { min: 100, max: 100000 }, // $1 - $1,000
         paypal: { min: 100, max: 6000000 }, // $1 - $60,000
         card: { min: 50, max: 99999999 }, // $0.50+

@@ -26,11 +26,10 @@ app.post("/create-payment-intent", async (req, res) => {
       customer_segment = "default",
     } = req.body;
 
+    // Get custome payment method configuration based on config id
     const pmConfiguration = await stripe.paymentMethodConfigurations.retrieve(
       process.env.PAYMENT_METHOD_CONFIGURATION_ID,
     );
-
-    console.log(pmConfiguration);
 
     // Extract payment method names
     const paymentMethods = Object.keys(pmConfiguration).filter(
@@ -39,19 +38,17 @@ app.post("/create-payment-intent", async (req, res) => {
         pmConfiguration[key].display_preference &&
         pmConfiguration[key].display_preference.preference === "on",
     );
-    const paymentController = new PaymentMethodController(paymentMethods);
+
+    const pmController = new PaymentMethodController(paymentMethods);
 
     // Get filtered payment methods
-    const allowedMethods = paymentController.filterPaymentMethods(
+    const allowedMethods = pmController.filterPaymentMethods(
       amount,
       currency,
       country,
       customer_segment,
     );
-    console.log(
-      "ALLOWED PAYMENT METHOD ..........................................",
-    );
-    console.log(allowedMethods);
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount, // Amount in cents
       currency: currency,
