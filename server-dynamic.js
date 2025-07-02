@@ -24,6 +24,7 @@ app.post("/create-payment-intent", async (req, res) => {
       currency = "usd",
       country = "US",
       customer_segment = "default",
+      products = [],
     } = req.body;
 
     // Get custome payment method configuration based on config id
@@ -53,7 +54,7 @@ app.post("/create-payment-intent", async (req, res) => {
       amount: amount, // Amount in cents
       currency: currency,
       // provide filtered payment method with amount limit filter applied
-      payment_method_types: allowedMethods,
+      payment_method_types: products,
 
       // Let Stripe automatically determine available payment methods
       // payment_method_configuration: process.env.PAYMENT_METHOD_CONFIGURATION_ID,
@@ -145,3 +146,41 @@ app.post("/create-setup-intent", async (req, res) => {
 
 const PORT = process.env.DYNAMIC_PM_PORT || 4001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+app.get("/products", async (req, res) => {
+  try {
+    // Get custome payment method configuration based on config id
+    const pmConfiguration = await stripe.paymentMethodConfigurations.retrieve(
+      process.env.PAYMENT_METHOD_CONFIGURATION_ID,
+    );
+
+    // Extract payment method names
+    const paymentMethods = Object.keys(pmConfiguration).filter(
+      (key) =>
+        pmConfiguration[key] &&
+        pmConfiguration[key].display_preference &&
+        pmConfiguration[key].display_preference.preference === "on",
+    );
+    const amountRangeRule = {
+      klarna: { min: 10000, max: 1000000 }, // $105 - $10,000
+      afterpay_clearpay: { min: 100, max: 200000 }, // $1 - $2,000
+      affirm: { min: 15000, max: 3000000 }, // $150 - $30,000
+      zip: { min: 100, max: 100000 }, // $1 - $1,000
+      paypal: { min: 100, max: 6000000 }, // $1 - $60,000
+      card: { min: 50, max: 99999999 }, // $0.50+
+      us_bank_account: { min: 100, max: null }, // $1+
+      sepa_debit: { min: 50, max: null }, // €0.50+
+      acss_debit: { min: 50, max: null }, // CAD $0.50+
+    };
+    res.send({
+      products: paymentMethods,
+      amountRangeRule,
+    });
+  } catch (error) {
+    res.status(400).send({
+      error: {
+        message: error.message,
+      },
+    });
+  }
+});

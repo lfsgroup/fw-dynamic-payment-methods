@@ -75,7 +75,7 @@
 
         try {
           // Create Payment Intent on server
-          const response = await fetch("/create-payment-intent", {
+          const response = await fetch("/create-static-payment-intent", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
