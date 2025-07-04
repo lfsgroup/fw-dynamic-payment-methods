@@ -144,7 +144,7 @@ app.post("/create-setup-intent", async (req, res) => {
   }
 });
 
-const PORT = process.env.DYNAMIC_PM_PORT || 4001;
+const PORT = process.env.PORT || 4001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 app.get("/products", async (req, res) => {
@@ -181,6 +181,40 @@ app.get("/products", async (req, res) => {
       error: {
         message: error.message,
       },
+    });
+  }
+});
+
+// Node.js/Express example
+app.post("/process-payment", async (req, res) => {
+  const {
+    confirmation_token,
+    amount,
+    return_url,
+    payment_method_types = [],
+  } = req.body;
+
+  try {
+    // Create PaymentIntent with confirmation token
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amount,
+      currency: "usd",
+      confirmation_token: confirmation_token,
+      confirm: true, // Immediately attempt to confirm
+      payment_method_types,
+      return_url,
+    });
+
+    res.json({
+      success: true,
+      payment_intent: paymentIntent,
+      client_secret: paymentIntent.client_secret,
+    });
+  } catch (error) {
+    console.error("Payment failed:", error);
+    res.status(400).json({
+      success: false,
+      error: error.message,
     });
   }
 });
