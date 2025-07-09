@@ -29,6 +29,9 @@
     <div id="payment-element">
       <!-- Stripe Elements will automatically show relevant payment methods -->
     </div>
+     <div id="custome-acss-payment-element">
+      <!-- Stripe Elements for custome acss payment method -->
+    </div>
     <button id="submit-button" type="submit">Pay Now</button>
     <div id="error-message"></div>
   </form>
@@ -39,7 +42,10 @@ let elements;
 let paymentElement;
 let amount;
 let currentPaymentType;
-let currency = "usd";
+let currency = "cad";
+// hard coded custome payment method id for use as acss_debit
+let customeACSSPaymentMethodID = "cpmt_1RilWzHfPm6bNYXASEZoMObY";
+let acssClientSecret = "";
 document.getElementById("amount").addEventListener("change", initializePayment);
 document
   .getElementById("payment-form")
@@ -111,6 +117,15 @@ async function initializePayment() {
         colorPrimary: "#0570de",
       },
     },
+    customPaymentMethods: [
+      {
+        id: customeACSSPaymentMethodID,
+        options: {
+          type: "static",
+          subtitle: "Optional subtitle",
+        },
+      },
+    ],
   });
 
   // Create and mount Payment Element
@@ -120,19 +135,60 @@ async function initializePayment() {
 
   // Dynamic payment element - Stripe automatically shows relevant methods
   paymentElement = elements.create("payment");
-  paymentElement.on("change", (event) => {
+  paymentElement.on("change", async (event) => {
     const newPaymentType = event.value?.type;
 
     // if (newPaymentType !== currentPaymentType) {
+    if (currentPaymentType === customeACSSPaymentMethodID) {
+      // clear the div
+      // reset clientSecret
+      console.log("flushing acss widgets");
+      document.getElementById("custome-acss-payment-element").innerHTML = "";
+    }
     currentPaymentType = newPaymentType;
+    if (currentPaymentType === customeACSSPaymentMethodID) {
+      // fetch client secret
+      const response = await fetch("/create-payment-intent", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ amount, currency, products: ["acss_debit"] }),
+      });
 
-    // Update fields based on payment method
-    paymentElement.update({
-      fields: {
-        billingDetails: getFieldsForPaymentType(newPaymentType),
-      },
-    });
-    // }
+      const { clientSecret } = await response.json();
+      acssClientSecret = clientSecret;
+      const billingDetails = {
+        name: "never",
+        email: "never",
+        address: "never",
+      };
+
+      console.log("billingDetails--------------------", billingDetails);
+      const acssElement = stripe.elements({
+        clientSecret,
+        // appearance: {
+        //   theme: "stripe",
+        //   variables: {
+        //     colorPrimary: "#0570de",
+        //   },
+        // },
+      });
+      const acssPaymentElement = acssElement.create("payment", {
+        fields: {
+          billingDetails,
+        },
+      });
+      acssPaymentElement.mount("#custome-acss-payment-element");
+    } else {
+      console.log(" other dynbamci method fields updates");
+      // Update fields based on payment method
+      paymentElement.update({
+        fields: {
+          billingDetails: getFieldsForPaymentType(newPaymentType),
+        },
+      });
+    }
   });
 
   function getFieldsForPaymentType(type) {
@@ -166,6 +222,38 @@ async function handleSubmit(event) {
   submitButton.disabled = true;
   submitButton.textContent = "Processing...";
 
+  const { submitError, selectedPaymentMethod } = await elements.submit();
+  if (selectedPaymentMethod === customeACSSPaymentMethodID) {
+    const confirmResponse = await stripe.confirmAcssDebitPayment(
+      acssClientSecret,
+      {
+        payment_method: {
+          billing_details: {
+            name: "dhiraj basukala",
+            email: "dhiraj@rapidpaylegal.com",
+            address: {
+              line1: "33 Times Avenue",
+              line2: "",
+              city: "Markham",
+              state: "Ontario",
+              country: "CA",
+              postal_code: "L3T 0A3",
+            },
+          },
+        },
+        return_url: window.location.origin + "/success.html",
+      },
+    );
+    if (confirmResponse?.error) {
+      document.getElementById("error-message").textContent =
+        confirmResponse?.error.message;
+      submitButton.disabled = false;
+      submitButton.textContent = "Pay Now";
+    } else {
+      window.location = "/success.html";
+    }
+    return;
+  }
   try {
     elements.submit();
     const { confirmationToken } = await stripe.createConfirmationToken({
