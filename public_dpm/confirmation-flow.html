@@ -141,7 +141,7 @@ async function initializePayment() {
       enabled: true
     };
   } else {
-    // remove acss debit
+    // remove acss debit because it will blow up
     console.log("Using Manual with", allowedMethods);
     const filteredMethods = allowedMethods.filter(method => method !== 'acss_debit');
     elementConfig.paymentMethodTypes = filteredMethods;
