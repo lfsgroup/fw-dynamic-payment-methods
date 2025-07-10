@@ -83,10 +83,17 @@ async function initApp() {
   }
 }
 function getAllowedMethods(amount, prds = [], amountRules = {}) {
-  return prds.filter((pm) => {
+  const allowedMethods = prds.filter((pm) => {
     if (!checkAmountConstraints(amount, pm, amountRules)) return false;
     return true;
   });
+
+  const useAutomatic = allowedMethods.length == prds.length
+
+  return {
+    useAutomatic,
+    allowedMethods
+  }
 }
 
 function checkAmountConstraints(amount, method, amountRules) {
@@ -104,13 +111,13 @@ async function initializePayment() {
   const productResponse = await fetch("/products");
   const { products, amountRangeRule } = await productResponse.json();
   // Get filtered payment methods
-  allowedMethods = getAllowedMethods(amount, products, amountRangeRule);
+  result = getAllowedMethods(amount, products, amountRangeRule);
+  const {useAutomatic, allowedMethods} = result;
   // Create Elements instance - simpler configuration for dynamic methods
-  elements = stripe.elements({
+  const elementConfig = {
     mode: "payment",
     amount,
     currency,
-    payment_method_types: allowedMethods,
     appearance: {
       theme: "stripe",
       variables: {
@@ -126,7 +133,21 @@ async function initializePayment() {
         },
       },
     ],
-  });
+  };
+
+  if (useAutomatic) {
+    console.log("Using Automatic!!!");
+    elementConfig.automaticPaymentMethods = {
+      enabled: true
+    };
+  } else {
+    // remove acss debit
+    console.log("Using Manual with", allowedMethods);
+    const filteredMethods = allowedMethods.filter(method => method !== 'acss_debit');
+    elementConfig.paymentMethodTypes = filteredMethods;
+  }
+
+  elements = stripe.elements(elementConfig);
 
   // Create and mount Payment Element
   if (paymentElement) {
