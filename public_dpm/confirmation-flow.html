@@ -105,14 +105,17 @@ async function initializePayment() {
   const { products, amountRangeRule } = await productResponse.json();
   // Get filtered payment methods
   allowedMethods = getAllowedMethods(amount, products, amountRangeRule);
-  console.log("allowed methods: ", allowedMethods)
+  console.log("allowed methods: ", allowedMethods);
   // Create Elements instance - simpler configuration for dynamic methods
   elements = stripe.elements({
     mode: "payment",
     amount,
     currency,
     // payment_method_types: allowedMethods,
-    paymentMethodConfiguration: 'pmc_1Ri3cdHfPm6bNYXAofVnQ7g3',
+    automatic_payment_methods: {
+      enabled: true,
+    },
+    paymentMethodConfiguration: "pmc_1Ri3cdHfPm6bNYXAofVnQ7g3",
     appearance: {
       theme: "stripe",
       variables: {
