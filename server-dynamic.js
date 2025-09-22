@@ -167,7 +167,7 @@ app.post("/create-static-payment-intent", async (req, res) => {
 app.post("/create-setup-intent", async (req, res) => {
   try {
     const setupIntent = await stripe.setupIntents.create({
-      payment_method_types: ["acss_debit"],
+      payment_method_types: ["card", "klarna", "affirm"],
       payment_method_options: {
         acss_debit: {
           currency: "cad",
@@ -274,10 +274,13 @@ app.post("/process-payment", async (req, res) => {
       currency,
       confirmation_token: confirmation_token,
       confirm: true, // Immediately attempt to confirm
-      payment_method_types,
       return_url,
+      payment_method_types: ["card", "pay_by_bank"],
     };
-
+    if (payment_method_types.length > 0) {
+      // paymentIntentOptions.payment_method_type = payment_method_types;
+    }
+    console.log(paymentIntentOptions);
     if (currency === "cad") {
       // delete paymentIntentOptions.confirm;
       Object.assign(paymentIntentOptions, {
@@ -293,12 +296,21 @@ app.post("/process-payment", async (req, res) => {
         },
         confirmation_method: "automatic",
       });
+    } else {
+      console.log("not cat ", currency);
     }
 
     // Create PaymentIntent with confirmation token
     const paymentIntent =
       await stripe.paymentIntents.create(paymentIntentOptions);
-
+    console.log(paymentIntent);
+    const result = await stripe.confirmPayment({
+      clientSecret: paymentIntent.client_secret,
+      confirmParams: {
+        confirmation_token: confirmation_token,
+        return_url: window.location,
+      },
+    });
     res.json({
       success: true,
       payment_intent: paymentIntent,

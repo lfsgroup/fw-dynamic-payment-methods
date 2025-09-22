@@ -42,7 +42,7 @@ let elements;
 let paymentElement;
 let amount;
 let currentPaymentType;
-let currency = "cad";
+let currency = "gbp";
 // hard coded custome payment method id for use as acss_debit
 let customeACSSPaymentMethodID = "cpmt_1RilWzHfPm6bNYXASEZoMObY";
 let acssClientSecret = "";
@@ -111,11 +111,12 @@ async function initializePayment() {
     mode: "payment",
     amount,
     currency,
-    // payment_method_types: allowedMethods,
-    automatic_payment_methods: {
-      enabled: true,
-    },
-    paymentMethodConfiguration: "pmc_1Ri3cdHfPm6bNYXAofVnQ7g3",
+    payment_method_types: ['card',  'pay_by_bank'],
+    // automatic_payment_methods: {
+    //   enabled: true,
+    // },
+    // // payment_method_types: ['card'],
+    // paymentMethodConfiguration: "pmc_1Ri3cdHfPm6bNYXAofVnQ7g3",
     appearance: {
       theme: "stripe",
       variables: {
@@ -269,12 +270,23 @@ async function handleSubmit(event) {
             name: "dhiraj basukala",
             email: "dhiraj@rapidpaylegal.com",
             address: {
-              line1: "123 William Street",
+              // us address
+              // line1: "123 William Street",
+              // line2: "",
+              // city: "New York",
+              // state: "New York",
+              // country: "US",
+              // postal_code: "10038",
+
+              // uk address
+              line1: "7 Whitworth Drive",
               line2: "",
-              city: "New York",
-              state: "New York",
-              country: "US",
-              postal_code: "10038",
+              city: "GLASGOW",
+              state: "Lanarkshire",
+              country: "GB",
+              postal_code: "G209JG",
+
+
             },
           },
         },
@@ -282,7 +294,8 @@ async function handleSubmit(event) {
       },
     });
     console.log(confirmationToken);
-
+    // await showReviewStep();
+    
     const processPaymentResponse = await fetch("/process-payment", {
       method: "POST",
       headers: {
