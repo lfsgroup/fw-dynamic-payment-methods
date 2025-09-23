@@ -304,13 +304,13 @@ app.post("/process-payment", async (req, res) => {
     const paymentIntent =
       await stripe.paymentIntents.create(paymentIntentOptions);
     console.log(paymentIntent);
-    const result = await stripe.confirmPayment({
+    const confirmPaymentOptions = {
       clientSecret: paymentIntent.client_secret,
       confirmParams: {
         confirmation_token: confirmation_token,
-        return_url: window.location,
+        return_url: "/confirmation-flow.html",
       },
-    });
+    };
     res.json({
       success: true,
       payment_intent: paymentIntent,
