@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <title>Customer Payment Methods</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+
+  <body>
+    <nav class="menu">
+      <a href="/">Dynamic PM</a>
+      <a href="/static.html">Static PM</a>
+      <a href="/setup.html">Setup PM</a>
+      <a href="/confirmation-flow.html">Confirmation flow</a>
+      <a href="/customer-payment-methods.html" class="selected"
+        >Customer PMs</a
+      >
+    </nav>
+
+    <h2>Customer Payment Methods</h2>
+
+    <div>
+      <label for="customer-id-input">Customer ID:</label>
+      <input
+        type="text"
+        id="customer-id-input"
+        value="cus_UPtRPXNRut6gq2"
+        placeholder="cus_..."
+        style="width: 280px"
+      />
+    </div>
+
+    <div style="margin-top: 8px">
+      <label for="type-input">Type (optional):</label>
+      <input
+        type="text"
+        id="type-input"
+        placeholder="card, us_bank_account, ..."
+        style="width: 220px"
+      />
+      <label for="limit-input" style="margin-left: 12px">Limit:</label>
+      <input
+        type="number"
+        id="limit-input"
+        min="1"
+        max="100"
+        placeholder="100"
+        style="width: 80px"
+      />
+    </div>
+
+    <button id="list-pm-button" type="button" style="margin-top: 8px">
+      List Customer Payment Methods
+    </button>
+
+    <pre
+      id="pm-result"
+      style="
+        background: #f6f8fa;
+        padding: 12px;
+        margin-top: 8px;
+        white-space: pre-wrap;
+      "
+    ></pre>
+
+    <script>
+      document
+        .getElementById("list-pm-button")
+        .addEventListener("click", listCustomerPaymentMethods);
+
+      async function listCustomerPaymentMethods() {
+        const customerId = document
+          .getElementById("customer-id-input")
+          .value.trim();
+        const type = document.getElementById("type-input").value.trim();
+        const limit = document.getElementById("limit-input").value.trim();
+        const resultEl = document.getElementById("pm-result");
+
+        if (!customerId) {
+          resultEl.textContent = "Please enter a customer ID.";
+          return;
+        }
+
+        const params = new URLSearchParams();
+        if (type) params.set("type", type);
+        if (limit) params.set("limit", limit);
+        const qs = params.toString() ? `?${params}` : "";
+
+        resultEl.textContent = "Loading...";
+        try {
+          const response = await fetch(
+            `/customer-payment-methods/${encodeURIComponent(customerId)}${qs}`,
+          );
+          const data = await response.json();
+          resultEl.textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+          resultEl.textContent = "Error: " + error.message;
+        }
+      }
+    </script>
+  </body>
+</html>

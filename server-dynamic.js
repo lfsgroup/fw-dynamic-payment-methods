@@ -217,6 +217,33 @@ app.post("/create-payment-with-token", async (req, res) => {
   }
 });
 
+app.get("/customer-payment-methods/:customerId", async (req, res) => {
+  try {
+    const { customerId } = req.params;
+    const { type, limit } = req.query;
+
+    const pmParams = { limit: limit ? Number(limit) : 100 };
+    if (type) pmParams.type = type;
+
+    const paymentMethods = await stripe.customers.listPaymentMethods(
+      customerId,
+      pmParams,
+    );
+
+    console.log({
+      paymentMethods: paymentMethods.data,
+    });
+
+    res.json({
+      customerId,
+      paymentMethods: paymentMethods.data,
+      hasMore: paymentMethods.has_more,
+    });
+  } catch (error) {
+    res.status(400).json({ error: { message: error.message } });
+  }
+});
+
 const PORT = process.env.PORT || 4001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
@@ -275,12 +302,12 @@ app.post("/process-payment", async (req, res) => {
       confirmation_token: confirmation_token,
       confirm: true, // Immediately attempt to confirm
       return_url,
-      payment_method_types: ["card", "pay_by_bank"],
+      // payment_method_types: ["card", "pay_by_bank"],
     };
     if (payment_method_types.length > 0) {
-      // paymentIntentOptions.payment_method_type = payment_method_types;
+      paymentIntentOptions.payment_method_types = payment_method_types;
     }
-    console.log(paymentIntentOptions);
+    console.log("PAYMENT_METHOD_OPTIONS:", paymentIntentOptions);
     if (currency === "cad") {
       // delete paymentIntentOptions.confirm;
       Object.assign(paymentIntentOptions, {

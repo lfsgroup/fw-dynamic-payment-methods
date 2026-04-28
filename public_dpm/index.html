@@ -1,211 +1,223 @@
 <!doctype html>
 <html lang="en-us">
+  <head>
+    <title>Dynamic Stripe Payment</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
 
-<head>
-  <title>Dynamic Stripe Payment</title>
-  <script src="https://js.stripe.com/v3/">
-</script>
-  <link rel="stylesheet" href="./style.css">
-  </link>
-</head>
+  <body>
+    <nav class="menu">
+      <a href="/" class="selected">Dynamic PM</a>
+      <a href="/static.html">Static PM</a>
+      <a href="/setup.html">Setup PM</a>
+      <a href="/confirmation-flow.html">Confirmation flow</a>
+      <a href="/customer-payment-methods.html">Customer PMs</a>
+    </nav>
+    <h3>Adding custome payment limit of</h3>
+    <div>klarna: $100 - $10,000</div>
+    <div>affirm: $150 - $30,000</div>
+    <h2>Dynamic Payment Methods</h2>
 
-<body>
-  <nav class="menu">
-    <a href="/" class="selected">Dynamic PM</a>
-    <a href="/static.html">Static PM</a>
-    <a href="/confirmation-flow.html">Confirmation flow</a>
-  </nav>
-   <h3> Adding custome payment limit of </h3>
-  <div> klarna: $100 - $10,000</div>
-  <div> affirm: $150 - $30,000</div>
-  <h2>Dynamic Payment Methods</h2>
+    <div id="loading">Loading payment form...</div>
+    <form id="payment-form">
+      <div>
+        <label>Amount: $</label>
+        <input type="number" id="amount" value="50.00" step="0.01" min="0.50" />
+      </div>
 
-  <div id="loading">Loading payment form...</div>
-  <form id="payment-form">
+      <div id="payment-element">
+        <!-- Stripe Elements will automatically show relevant payment methods -->
+      </div>
 
-       <div>
-                     <label>Amount: $</label>
-          <input type="number" id="amount" value="50.00" step="0.01" min="0.50" />
-     </div>
+      <button id="submit-button" type="submit">Pay Now</button>
 
-    <div id="payment-element">
-      <!-- Stripe Elements will automatically show relevant payment methods -->
-    </div>
+      <div id="error-message"></div>
+    </form>
 
-    <button id="submit-button" type="submit">Pay Now</button>
+    <script>
+      // Initialize Stripe
+      let stripe;
+      let elements;
+      let paymentElement;
+      let currency = "cad";
+      document
+        .getElementById("amount")
+        .addEventListener("change", initializePayment);
+      document
+        .getElementById("payment-form")
+        .addEventListener("submit", handleSubmit);
 
-    <div id="error-message"></div>
-  </form>
+      // Initialize everything when page loads
+      initApp();
 
-  <script>
- // Initialize Stripe
- let stripe;
- let elements;
- let paymentElement;
- let currency = "usd";
- document.getElementById("amount").addEventListener("change", initializePayment);
- document
-   .getElementById("payment-form")
-   .addEventListener("submit", handleSubmit);
+      async function initApp() {
+        try {
+          // Get publishable key from server
+          const configResponse = await fetch("/config");
+          const { publishableKey, pmc } = await configResponse.json();
 
- // Initialize everything when page loads
- initApp();
+          // Initialize Stripe with the key
+          stripe = Stripe(publishableKey);
 
- async function initApp() {
-   try {
-     // Get publishable key from server
-     const configResponse = await fetch("/config");
-     const { publishableKey, pmc } = await configResponse.json();
+          // Hide loading, show form
+          document.getElementById("loading").style.display = "none";
+          document.getElementById("payment-form").style.display = "block";
 
-     // Initialize Stripe with the key
-     stripe = Stripe(publishableKey);
+          // Set up event listeners
+          document
+            .getElementById("amount")
+            .addEventListener("change", initializePayment);
+          document
+            .getElementById("payment-form")
+            .addEventListener("submit", handleSubmit);
 
-     // Hide loading, show form
-     document.getElementById("loading").style.display = "none";
-     document.getElementById("payment-form").style.display = "block";
+          // Initialize payment
+          await initializePayment();
+        } catch (error) {
+          document.getElementById("loading").textContent =
+            "Error loading payment form: " + error.message;
+        }
+      }
 
-     // Set up event listeners
-     document
-       .getElementById("amount")
-       .addEventListener("change", initializePayment);
-     document
-       .getElementById("payment-form")
-       .addEventListener("submit", handleSubmit);
+      function getAllowedMethods(amount, prds = [], amountRules = {}) {
+        return prds.filter((pm) => {
+          if (!checkAmountConstraints(amount, pm, amountRules)) return false;
+          return true;
+        });
+      }
 
-     // Initialize payment
-     await initializePayment();
-   } catch (error) {
-     document.getElementById("loading").textContent =
-       "Error loading payment form: " + error.message;
-   }
- }
+      function checkAmountConstraints(amount, method, amountRules) {
+        const rules = amountRules[method];
+        if (!rules) return true; // No rules means allowed
+        if (rules.min && amount < rules.min) return false;
+        if (rules.max && amount > rules.max) return false;
+        return true;
+      }
 
- function getAllowedMethods(amount, prds = [], amountRules = {}) {
-   return prds.filter((pm) => {
-     if (!checkAmountConstraints(amount, pm, amountRules)) return false;
-     return true;
-   });
- }
+      async function initializePayment() {
+        const amount = Math.round(
+          parseFloat(document.getElementById("amount").value) * 100,
+        );
+        const productResponse = await fetch("/products");
+        const { products, amountRangeRule } = await productResponse.json();
+        // Get filtered payment methods
+        const allowedMethods = getAllowedMethods(
+          amount,
+          products,
+          amountRangeRule,
+        );
+        console.log(allowedMethods);
+        // Create Payment Intent on server
+        const response = await fetch("/create-payment-intent", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ amount, currency, products: allowedMethods }),
+        });
+        const { clientSecret } = await response.json();
+        // Create Elements instance - simpler configuration for dynamic methods
+        elements = stripe.elements({
+          clientSecret,
+          appearance: {
+            theme: "stripe",
+            variables: {
+              colorPrimary: "#0570de",
+            },
+          },
+          customPaymentMethods: [
+            {
+              id: "cpmt_1RilWzHfPm6bNYXASEZoMObY",
+              options: {
+                type: "static",
+                subtitle: "Optional subtitle",
+              },
+            },
+          ],
+        });
 
- function checkAmountConstraints(amount, method, amountRules) {
-   const rules = amountRules[method];
-   if (!rules) return true; // No rules means allowed
-   if (rules.min && amount < rules.min) return false;
-   if (rules.max && amount > rules.max) return false;
-   return true;
- }
+        // Create and mount Payment Element
+        if (paymentElement) {
+          paymentElement.unmount();
+        }
 
- async function initializePayment() {
-   const amount = Math.round(
-     parseFloat(document.getElementById("amount").value) * 100,
-   );
-   const productResponse = await fetch("/products");
-   const { products, amountRangeRule } = await productResponse.json();
-   // Get filtered payment methods
-   const allowedMethods = getAllowedMethods(amount, products, amountRangeRule);
-   console.log(allowedMethods);
-   // Create Payment Intent on server
-   const response = await fetch("/create-payment-intent", {
-     method: "POST",
-     headers: {
-       "Content-Type": "application/json",
-     },
-     body: JSON.stringify({ amount, currency, products: allowedMethods }),
-   });
-   const { clientSecret } = await response.json();
-   // Create Elements instance - simpler configuration for dynamic methods
-   elements = stripe.elements({
-     clientSecret,
-     appearance: {
-       theme: "stripe",
-       variables: {
-         colorPrimary: "#0570de",
-       },
-     },
-   });
+        // Dynamic payment element - Stripe automatically shows relevant methods
+        paymentElement = elements.create("payment");
+        paymentElement.on("change", (event) => {
+          const newPaymentType = event.value?.type;
 
-   // Create and mount Payment Element
-   if (paymentElement) {
-     paymentElement.unmount();
-   }
+          // if (newPaymentType !== currentPaymentType) {
+          currentPaymentType = newPaymentType;
 
-   // Dynamic payment element - Stripe automatically shows relevant methods
-   paymentElement = elements.create("payment");
-   paymentElement.on("change", (event) => {
-     const newPaymentType = event.value?.type;
+          // Update fields based on payment method
+          paymentElement.update({
+            fields: {
+              billingDetails: getFieldsForPaymentType(newPaymentType),
+            },
+          });
+          // }
+        });
 
-     // if (newPaymentType !== currentPaymentType) {
-     currentPaymentType = newPaymentType;
+        function getFieldsForPaymentType(type) {
+          switch (type) {
+            case "us_bank_account":
+              return {
+                name: "never",
+                email: "never",
+                address: "never", // Hide address for bank accounts
+              };
+            case "card":
+              return {
+                name: "auto",
+                email: "auto",
+                address: "never", // Show address for cards
+              };
+            default:
+              return {
+                name: "auto",
+                email: "auto",
+                address: "never",
+              };
+          }
+        }
+        paymentElement.mount("#payment-element");
+      }
 
-     // Update fields based on payment method
-     paymentElement.update({
-       fields: {
-         billingDetails: getFieldsForPaymentType(newPaymentType),
-       },
-     });
-     // }
-   });
+      async function handleSubmit(event) {
+        event.preventDefault();
 
-   function getFieldsForPaymentType(type) {
-     switch (type) {
-       case "us_bank_account":
-         return {
-           name: "never",
-           email: "never",
-           address: "never", // Hide address for bank accounts
-         };
-       case "card":
-         return {
-           name: "auto",
-           email: "auto",
-           address: "never", // Show address for cards
-         };
-       default:
-         return {
-           name: "auto",
-           email: "auto",
-           address: "never",
-         };
-     }
-   }
-   paymentElement.mount("#payment-element");
- }
+        const submitButton = document.getElementById("submit-button");
+        submitButton.disabled = true;
+        submitButton.textContent = "Processing...";
 
- async function handleSubmit(event) {
-   event.preventDefault();
+        const { error } = await stripe.confirmPayment({
+          elements,
+          confirmParams: {
+            payment_method_data: {
+              billing_details: {
+                name: "dhiraj basukala",
+                email: "dhiraj@rapidpaylegal.com",
+                address: {
+                  line1: "123 William Street",
+                  line2: "",
+                  city: "New York",
+                  state: "New York",
+                  country: "US",
+                  postal_code: "10038",
+                },
+              },
+            },
+            return_url: window.location.origin + "/success.html",
+          },
+        });
 
-   const submitButton = document.getElementById("submit-button");
-   submitButton.disabled = true;
-   submitButton.textContent = "Processing...";
-
-   const { error } = await stripe.confirmPayment({
-     elements,
-     confirmParams: {
-       payment_method_data: {
-         billing_details: {
-           name: "dhiraj basukala",
-           email: "dhiraj@rapidpaylegal.com",
-           address: {
-             line1: "123 William Street",
-             line2: "",
-             city: "New York",
-             state: "New York",
-             country: "US",
-             postal_code: "10038",
-           },
-         },
-       },
-       return_url: window.location.origin + "/success.html",
-     },
-   });
-
-   if (error) {
-     document.getElementById("error-message").textContent = error.message;
-     submitButton.disabled = false;
-     submitButton.textContent = "Pay Now";
-   }
- }
-  </script>
-</body>
-
+        if (error) {
+          document.getElementById("error-message").textContent = error.message;
+          submitButton.disabled = false;
+          submitButton.textContent = "Pay Now";
+        }
+      }
+    </script>
+  </body>
 </html>

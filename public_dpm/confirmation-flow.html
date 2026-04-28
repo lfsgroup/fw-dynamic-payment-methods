@@ -54,6 +54,7 @@ document
 // Initialize everything when page loads
 initApp();
 
+  const tempPaymentmethods = [ 'card','klarna',  'pay_by_bank']
 async function initApp() {
   try {
     // Get publishable key from server
@@ -102,16 +103,16 @@ async function initializePayment() {
     parseFloat(document.getElementById("amount").value) * 100,
   );
   const productResponse = await fetch("/products");
+
   const { products, amountRangeRule } = await productResponse.json();
   // Get filtered payment methods
   allowedMethods = getAllowedMethods(amount, products, amountRangeRule);
-  console.log("allowed methods: ", allowedMethods);
   // Create Elements instance - simpler configuration for dynamic methods
   elements = stripe.elements({
     mode: "payment",
     amount,
     currency,
-    payment_method_types: ['card',  'pay_by_bank'],
+    payment_method_types: tempPaymentmethods, 
     // automatic_payment_methods: {
     //   enabled: true,
     // },
@@ -305,7 +306,7 @@ async function handleSubmit(event) {
         confirmation_token: confirmationToken.id,
         amount,
         currency,
-        // payment_method_types: allowedMethods,
+        payment_method_types: tempPaymentmethods,
       }),
     });
     const processPaymentResult = await processPaymentResponse.json();

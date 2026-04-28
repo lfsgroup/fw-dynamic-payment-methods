@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ACSS Debit with Confirmation Token</title>
+    <script src="https://js.stripe.com/v3/"></script>
+  </head>
+  <body>
+    <form id="setup-form">
+      <div id="payment-element"></div>
+      <button id="submit">Set up payment method</button>
+      <div id="error-message"></div>
+    </form>
+
+    <script>
+      const stripe = Stripe(
+        "pk_test_51MEhr6HfPm6bNYXAXOfNUQFdFs4KbZ14psmYmrcRKLJZTMJINmV63lQkInpY7aSjqT9YazPtMW5ImpqI2K8fenBW00lcZxU9Fw",
+      ); // Replace with your publishable key
+
+      let elements;
+
+      initialize();
+
+      document
+        .querySelector("#setup-form")
+        .addEventListener("submit", handleSubmit);
+
+      async function initialize() {
+        const { clientSecret } = await fetch("/create-setup-intent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        }).then((r) => r.json());
+
+        elements = stripe.elements({
+          clientSecret,
+          appearance: {
+            theme: "stripe",
+          },
+        });
+
+        const paymentElement = elements.create("payment", {
+          paymentMethodOrder: ["card"],
+        });
+        paymentElement.mount("#payment-element");
+      }
+
+      async function handleSubmit(e) {
+        e.preventDefault();
+        setLoading(true);
+
+        const { error, setupIntent } = await stripe.confirmSetup({
+          elements,
+          confirmParams: {
+            // return_url: window.location.origin + "/success.html",
+          },
+          redirect: "if_required",
+        });
+
+        console.log("Setup intent", setupIntent);
+        if (error) {
+          showMessage(error.message);
+          setLoading(false);
+        } else if (setupIntent.status === "requires_action") {
+          console.log("setup intent require actions", setupIntent);
+          // Handle any required actions, if necessary
+          stripe
+            .confirmAcssDebitSetup(setupIntent.client_secret)
+            .then(handleSetupResult);
+        } else {
+          console.log("create payment with token");
+          // Setup was successful, now create a PaymentIntent with the confirmation token
+          createPaymentWithToken(setupIntent.payment_method);
+        }
+      }
+
+      async function createPaymentWithToken(paymentMethodId) {
+        elements.submit();
+        const { confirmationToken } = await stripe.createConfirmationToken({
+          elements,
+          params: {
+            payment_method_data: {
+              // type: currentPaymentType,
+              billing_details: {
+                name: "dhiraj basukala",
+                email: "dhiraj@rapidpaylegal.com",
+                address: {
+                  line1: "123 William Street",
+                  line2: "",
+                  city: "New York",
+                  state: "New York",
+                  country: "US",
+                  postal_code: "10038",
+                },
+              },
+            },
+            return_url: window.location.origin + "/success.html",
+          },
+        });
+        console.log(confirmationToken);
+
+        const response = await fetch("/create-payment-with-token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            paymentMethodId,
+            amount: 1000,
+            confirmationTokenId: confirmationToken.id,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.error) {
+          showMessage(result.error);
+        } else if (result.requiresAction) {
+          // Handle any required actions for the payment
+          stripe
+            .confirmAcssDebitPayment(result.clientSecret)
+            .then(handlePaymentResult);
+        } else {
+          handlePaymentResult(result);
+        }
+
+        setLoading(false);
+      }
+
+      function handleSetupResult(result) {
+        if (result.error) {
+          showMessage(result.error.message);
+        } else {
+          createPaymentWithToken(result.setupIntent.payment_method);
+        }
+      }
+
+      function handlePaymentResult(result) {
+        if (result.error) {
+          showMessage(result.error.message);
+        } else if (result.paymentIntent.status === "succeeded") {
+          showMessage("Payment succeeded!");
+        } else {
+          showMessage(`Payment status: ${result.paymentIntent.status}`);
+        }
+      }
+
+      function showMessage(messageText) {
+        const messageContainer = document.querySelector("#error-message");
+        messageContainer.textContent = messageText;
+        setTimeout(function () {
+          messageContainer.textContent = "";
+        }, 4000);
+      }
+
+      function setLoading(isLoading) {
+        if (isLoading) {
+          document.querySelector("#submit").disabled = true;
+        } else {
+          document.querySelector("#submit").disabled = false;
+        }
+      }
+    </script>
+  </body>
+</html>
